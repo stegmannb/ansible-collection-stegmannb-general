@@ -1,0 +1,71 @@
+---
+# this role has no ansible-galaxy dependencies
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+driver:
+  options:
+    managed: false
+    login_cmd_template: "podman exec -ti {instance} bash"
+    ansible_connection_options:
+      ansible_connection: podman
+platforms:
+  - name: molecule-default-ubuntu-noble
+    image: mirror.gcr.io/ubuntu:24.04
+    groups:
+      - test_family_debian
+  - name: molecule-default-ubuntu-jammy
+    image: mirror.gcr.io/ubuntu:22.04
+    groups:
+      - test_family_debian
+  - name: molecule-default-ubuntu-focal
+    image: mirror.gcr.io/ubuntu:20.04
+    groups:
+      - test_family_debian
+  - name: molecule-default-debian-bookworm
+    image: mirror.gcr.io/debian:bookworm
+    groups:
+      - test_family_debian
+  - name: molecule-default-debian-bullseye
+    image: mirror.gcr.io/debian:bullseye
+    groups:
+      - test_family_debian
+  - name: molecule-default-fedora-40
+    image: mirror.gcr.io/fedora:40
+    groups:
+      - test_family_fedora
+  - name: molecule-default-fedora-39
+    image: mirror.gcr.io/fedora:39
+    groups:
+      - test_family_fedora
+  - name: molecule-default-alpine-3
+    image: mirror.gcr.io/alpine:3
+    groups:
+      - test_family_alpine
+  - name: molecule-default-archlinux
+    image: mirror.gcr.io/archlinux:latest
+    groups:
+      - test_family_archlinux
+
+provisioner:
+  name: ansible
+  playbooks:
+    create: ../resources/playbooks/create.yml
+    destroy: ../resources/playbooks/destroy.yml
+    converge: ../resources/playbooks/converge.yml
+    prepare: ../resources/playbooks/prepare.yml
+
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - cleanup
+    - destroy

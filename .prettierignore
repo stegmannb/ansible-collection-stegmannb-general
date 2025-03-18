@@ -1,0 +1,9 @@
+# dependencies
+.ansible/
+.venv/
+
+# VSCode settings
+.vscode/
+
+# Mise
+.mise

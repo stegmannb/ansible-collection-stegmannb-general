@@ -1,0 +1,14 @@
+# Debugging Files
+debug-*
+
+# IDE Settings
+.vscode/
+
+# Python
+.venv/
+
+# Ansible
+.ansible
+
+# Mise
+.mise

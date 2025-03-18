@@ -1,0 +1,16 @@
+---
+argument_specs:
+  main:
+    short_description: Main entry point for the myapp role
+    description:
+      - This is the main entrypoint for the C(myapp) role.
+      - Here we can describe what this entrypoint does in lengthy words.
+      - Every new list item is a new paragraph. You can have multiple sentences
+        per paragraph.
+    options:
+      ansible_os_family:
+        type: "str"
+        required: true
+        description:
+          - "The integer value, defaulting to 42."
+          - "This is a second paragraph."

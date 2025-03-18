@@ -1,0 +1,63 @@
+[tools]
+python = '3.12.6'
+uv = 'latest'
+watchexec = 'latest'
+pre-commit = 'latest'
+# ansible managed by uv
+# molecule managed by uv
+node = '22.14.0' # required for the npm backend
+# TODO: npm backend does not work in CI environments
+"npm:prettier" = '3.5.3'
+
+[env]
+ANSIBLE_COLLECTIONS_PATH = "{{ config_root }}/.ansible/collections/ansible_collections"
+_.python.venv.create = true
+_.python.venv.python = '3.12.6'
+_.python.venv.path = ".venv"
+
+[settings]
+python.uv_venv_auto = true
+
+[tasks."sync:uv"]
+run = "uv sync"
+
+[tasks."sync:mise"]
+run = "mise sync python --uv"
+wait_for = ["sync:uv"]
+
+[tasks.sync]
+depends = ["sync:*"]
+
+[tasks."test:pre-commit"]
+run = "pre-commit run --all-files"
+
+[tasks."test:prettier"]
+run = "prettier --check ."
+
+[tasks."test:ansible-lint"]
+run = "ansible-lint"
+
+[tasks."test:molecule:group_facts"]
+run = "molecule test --all"
+dir = "{{ config_root }}/roles/group_facts"
+
+[tasks."test:molecule"]
+depends = ["test:molecule:*"]
+
+[tasks.test]
+depends = ["test:*"]
+
+[tasks."format:prettier"]
+run = "prettier --write ."
+
+[tasks.format]
+depends = ["format:*"]
+
+[tasks.'update:mise:bootstrap']
+run = "mise generate bootstrap --localize --write"
+
+[tasks.update]
+depends = ["update:*"]
+
+[tasks.build]
+run = "ansible-galaxy collection build"

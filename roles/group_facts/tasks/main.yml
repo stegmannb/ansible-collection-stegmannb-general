@@ -1,0 +1,30 @@
+---
+# tasks file for group
+- name: Group the hosts by their OS family
+  ansible.builtin.group_by:
+    key: "os_family_{{ ansible_os_family | lower }}"
+
+- name: Group the hosts by their distribution
+  ansible.builtin.group_by:
+    key: "distro_{{ ansible_distribution | lower }}_{{ ansible_distribution_major_version | replace('.', '_') }}"
+    parents:
+      - "distro_{{ ansible_distribution | lower }}"
+  when: ansible_distribution_major_version is defined
+
+- name: Group the hosts by their distribution
+  ansible.builtin.group_by:
+    key: "distro_{{ ansible_distribution | lower }}_{{ ansible_distribution_version | replace('.', '_') }}"
+    parents:
+      - "distro_{{ ansible_distribution | lower }}"
+  when: ansible_distribution_version is defined
+
+- name: Group the hosts by their distribution
+  ansible.builtin.group_by:
+    key: "distro_{{ ansible_distribution | lower }}_{{ ansible_distribution_release }}"
+    parents:
+      - "distro_{{ ansible_distribution | lower }}"
+  when: ansible_distribution_release is defined
+
+- name: Group the hosts by their processor architecture
+  ansible.builtin.group_by:
+    key: "arch_{{ ansible_machine }}"
