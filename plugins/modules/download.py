@@ -36,10 +36,16 @@ options:
         type: str
     checksum:
         description:
-            - Expected checksum of the file in format "algorithm:checksum"
-            - Supported algorithms: md5, sha1, sha224, sha256, sha384, sha512
-            - Example: "sha256:123456789abcdef"
+            - Expected checksum of the file
+            - The checksum will be verified using the algorithm specified in checksum_algorithm
         type: str
+    checksum_algorithm:
+        description:
+            - Algorithm to use for checksum verification
+            - Uses the same algorithm as ansible.builtin.stat 
+        type: str
+        default: sha1
+        choices: ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512']
     decompress:
         description:
             - Whether to decompress the file after download
@@ -77,7 +83,8 @@ EXAMPLES = r"""
   download:
     src: https://example.com/file.zip
     dest: /tmp/file.txt
-    checksum: "sha256:123456789abcdef"
+    checksum: 123456789abcdef
+    checksum_algorithm: sha256
     
 # Download and decompress
 - name: Download and extract archive
@@ -98,6 +105,10 @@ dest:
     returned: always
 checksum:
     description: Checksum of the file
+    type: str
+    returned: when checksum is specified
+checksum_algorithm:
+    description: Algorithm used for checksum verification
     type: str
     returned: when checksum is specified
 decompressed:
@@ -224,6 +235,11 @@ def main():
             owner=dict(type="str"),
             group=dict(type="str"),
             checksum=dict(type="str"),
+            checksum_algorithm=dict(
+                type="str",
+                default="sha1",
+                choices=["md5", "sha1", "sha224", "sha256", "sha384", "sha512"],
+            ),
             decompress=dict(type="bool", default=False),
             decompress_format=dict(
                 type="str",
@@ -240,36 +256,24 @@ def main():
     mode = module.params["mode"]
     owner = module.params["owner"]
     group = module.params["group"]
-    checksum_param = module.params["checksum"]
+    checksum_value = module.params["checksum"]
+    checksum_algorithm = module.params["checksum_algorithm"]
     decompress = module.params["decompress"]
     decompress_format = module.params["decompress_format"]
     force = module.params["force"]
 
     result = dict(changed=False, src=src, dest=dest)
 
-    # Parse checksum if provided
-    checksum_algorithm = None
-    checksum_value = None
-    if checksum_param:
-        parts = checksum_param.split(":", 1)
-        if len(parts) != 2:
-            module.fail_json(
-                msg="Invalid checksum format. Expected 'algorithm:checksum'"
-            )
-        checksum_algorithm = parts[0].lower()
-        checksum_value = parts[1]
-
-        valid_algorithms = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"]
-        if checksum_algorithm not in valid_algorithms:
-            module.fail_json(
-                msg=f"Unsupported checksum algorithm: {checksum_algorithm}. Supported: {', '.join(valid_algorithms)}"
-            )
+    # Handle checksum related values in result
+    if checksum_value:
+        result["checksum"] = checksum_value
+        result["checksum_algorithm"] = checksum_algorithm
 
     # Check if file exists and if we need to download it
     needs_download = True
     if os.path.exists(dest) and not force:
         # If checksum is provided, verify it
-        if checksum_param:
+        if checksum_value:
             actual_checksum = calculate_checksum(dest, checksum_algorithm)
             needs_download = actual_checksum != checksum_value
         else:
@@ -293,14 +297,13 @@ def main():
                 f.write(response.read())
 
             # Verify checksum if provided
-            if checksum_param:
+            if checksum_value:
                 actual_checksum = calculate_checksum(temp_path, checksum_algorithm)
                 if actual_checksum != checksum_value:
                     module.fail_json(
                         msg=f"Checksum verification failed. Expected: {checksum_value}, Got: {actual_checksum}",
                         **result,
                     )
-                result["checksum"] = actual_checksum
 
             # Handle decompression if requested
             if decompress:

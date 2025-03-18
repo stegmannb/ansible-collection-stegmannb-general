@@ -25,6 +25,14 @@ run = "uv sync"
 run = "mise sync python --uv"
 wait_for = ["sync:uv"]
 
+[tasks."sync:ansible"]
+run = '''
+mkdir --parents "{{ config_root }}/.ansible/collections/ansible_collections/stegmannb"
+rm --force "{{ config_root }}/.ansible/collections/ansible_collections/stegmannb/general"
+ln --symbolic --force "{{ config_root }}" "{{ config_root }}/.ansible/collections/ansible_collections/stegmannb/general"
+'''
+hide = true
+
 [tasks.sync]
 depends = ["sync:*"]
 
@@ -45,7 +53,7 @@ dir = "{{ config_root }}/roles/group_facts"
 depends = ["test:molecule:*"]
 
 [tasks.test]
-depends = ["test:*"]
+depends = ["test:pre-commit", "test:ansible-lint", "test:molecule"]
 
 [tasks."format:prettier"]
 run = "prettier --write ."
@@ -61,3 +69,14 @@ depends = ["update:*"]
 
 [tasks.build]
 run = "ansible-galaxy collection build"
+
+[tasks."test:molecule:download"]
+run = '''
+ansible-test sanity
+'''
+
+[tasks.debug]
+run = '''
+cd general && pwd
+'''
+dir = "{{ config_root }}/.ansible/collections/ansible_collections/stegmannb"

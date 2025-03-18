@@ -8,7 +8,8 @@
         src: https://mirror.dns-root.de/opnsense/releases/mirror/OPNsense-25.1-nano-amd64.img.bz2
         dest: /tmp/OPNsense-25.1-nano-amd64.img
         mode: "0644"
-        checksum: "sha256:a51e4499df6394042ad804daa8e376c291e8475860343a0a44d93d8c8cf4636e"
+        checksum: a51e4499df6394042ad804daa8e376c291e8475860343a0a44d93d8c8cf4636e
+        checksum_algorithm: sha256
       register: download_result
 
     - name: Download a text file
@@ -16,5 +17,6 @@
         src: https://mirror.fra10.de.leaseweb.net/opnsense/releases/mirror/OPNsense-25.1-checksums-amd64.sha256
         dest: /tmp/OPNsense-25.1-checksums-amd64.sha256
         mode: "0644"
-        checksum: "sha256:3e9f620e0e81833c19d5186a89e5d8bba589f69c0993a18765863c6b62cf2e57"
+        checksum: 3e9f620e0e81833c19d5186a89e5d8bba589f69c0993a18765863c6b62cf2e57
+        checksum_algorithm: sha256
       register: download_result
