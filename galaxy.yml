@@ -5,7 +5,7 @@
 namespace: stegmannb
 
 # The name of the collection. Has the same character restrictions as 'namespace'
-name: common
+name: general
 
 # The version of the collection. Must be compatible with semantic versioning
 version: 0.1.0
@@ -39,10 +39,10 @@ dependencies:
   "containers.podman": ">=1.16.1"
 
 # The URL of the originating SCM repository
-repository: https://gitlab.stegmannb.gmbh/infrastructure/ansible-collection-stegmannb-common
+repository: https://github.com/stegmannb/ansible-collection-stegmannb-general
 
 # The URL to any online docs
-documentation: https://gitlab.stegmannb.gmbh/infrastructure/ansible-collection-stegmannb-common#README.md
+documentation: https://github.com/stegmannb/ansible-collection-stegmannb-general?tab=readme-ov-file#
 
 # The URL to the collection issue tracker
 # issues: http://example.com/issue/tracker
