@@ -42,7 +42,7 @@ options:
     checksum_algorithm:
         description:
             - Algorithm to use for checksum verification
-            - Uses the same algorithm as ansible.builtin.stat 
+            - Uses the same algorithm as ansible.builtin.stat
         type: str
         default: sha1
         choices: ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512']
@@ -54,10 +54,10 @@ options:
     decompress_format:
         description:
             - Force a specific decompression format
-            - If not specified, the format is guessed from the file extension
-            - Supported formats: zip, gz, bz2, xz, tar
+            - If not specified, the format is guessed from the original file extension
+            - Supported formats: zip, gz, bz2, xz, tar, zst (zstandard)
         type: str
-        choices: ['zip', 'gz', 'bz2', 'xz', 'tar', 'auto']
+        choices: ['zip', 'gz', 'bz2', 'xz', 'tar', 'zst', 'auto']
         default: 'auto'
     force:
         description:
@@ -125,11 +125,6 @@ import os
 import tempfile
 import hashlib
 import shutil
-import tarfile
-import zipfile
-import gzip
-import bz2
-import lzma
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.urls import fetch_url
 
@@ -157,8 +152,19 @@ def calculate_checksum(filename, algorithm):
     return hash_obj.hexdigest()
 
 
-def decompress_file(src, dest, decompress_format="auto"):
-    """Decompress file based on format"""
+def decompress_file(src, dest, original_filename="", decompress_format="auto"):
+    """
+    Decompress file based on format
+
+    Args:
+        src: Path to the compressed file (temporary file)
+        dest: Path where to extract contents
+        original_filename: Original filename from URL (used for format detection)
+        decompress_format: Format to use for decompression (auto, zip, gz, bz2, xz, tar, zst)
+
+    Returns:
+        tuple: (success, error_message)
+    """
     dest_dir = os.path.dirname(dest)
 
     # Create destination directory if it doesn't exist
@@ -167,24 +173,36 @@ def decompress_file(src, dest, decompress_format="auto"):
 
     # Determine format if auto
     if decompress_format == "auto":
-        if src.endswith(".zip"):
+        # Use original filename for format detection if available
+        detection_filename = original_filename if original_filename else src
+
+        if detection_filename.endswith(".zip"):
             decompress_format = "zip"
-        elif src.endswith(".tar.gz") or src.endswith(".tgz"):
+        elif detection_filename.endswith(".tar.gz") or detection_filename.endswith(
+            ".tgz"
+        ):
             decompress_format = "tar"
-        elif src.endswith(".gz"):
+        elif detection_filename.endswith(".gz"):
             decompress_format = "gz"
-        elif src.endswith(".bz2"):
+        elif detection_filename.endswith(".bz2"):
             decompress_format = "bz2"
-        elif src.endswith(".xz"):
+        elif detection_filename.endswith(".xz"):
             decompress_format = "xz"
-        elif src.endswith(".tar"):
+        elif detection_filename.endswith(".zst"):
+            decompress_format = "zst"
+        elif detection_filename.endswith(".tar"):
             decompress_format = "tar"
         else:
-            return False, f"Could not determine compression format for {src}"
+            return (
+                False,
+                f"Could not determine compression format for {detection_filename}",
+            )
 
     try:
-        # Handle different compression formats
+        # Import and handle format-specific decompression
         if decompress_format == "zip":
+            import zipfile
+
             with zipfile.ZipFile(src, "r") as zip_ref:
                 # If dest is a directory, extract all files there
                 if os.path.isdir(dest):
@@ -196,6 +214,8 @@ def decompress_file(src, dest, decompress_format="auto"):
                             shutil.copyfileobj(f_in, f_out)
 
         elif decompress_format == "tar":
+            import tarfile
+
             with tarfile.open(src) as tar_ref:
                 if os.path.isdir(dest):
                     tar_ref.extractall(dest)
@@ -206,24 +226,50 @@ def decompress_file(src, dest, decompress_format="auto"):
                             shutil.copyfileobj(f_in, f_out)
 
         elif decompress_format == "gz":
+            import gzip
+
             with gzip.open(src, "rb") as f_in:
                 with open(dest, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
         elif decompress_format == "bz2":
+            import bz2
+
             with bz2.open(src, "rb") as f_in:
                 with open(dest, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
         elif decompress_format == "xz":
+            import lzma
+
             with lzma.open(src, "rb") as f_in:
                 with open(dest, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
+        elif decompress_format == "zst":
+            try:
+                import zstandard as zstd
+
+                with open(src, "rb") as f_in_raw:
+                    dctx = zstd.ZstdDecompressor()
+                    with dctx.stream_reader(f_in_raw) as f_in:
+                        with open(dest, "wb") as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+            except ImportError:
+                return (
+                    False,
+                    "Zstandard support requires the 'zstandard' Python module. Please install it with 'pip install zstandard'.",
+                )
+
         return True, None
 
+    except ImportError as e:
+        return (
+            False,
+            f"Missing dependency for {decompress_format} decompression: {str(e)}",
+        )
     except Exception as e:
-        return False, str(e)
+        return False, f"Error during decompression: {str(e)}"
 
 
 def main():
@@ -244,7 +290,7 @@ def main():
             decompress_format=dict(
                 type="str",
                 default="auto",
-                choices=["zip", "gz", "bz2", "xz", "tar", "auto"],
+                choices=["zip", "gz", "bz2", "xz", "tar", "zst", "auto"],
             ),
             force=dict(type="bool", default=False),
         ),
@@ -296,6 +342,11 @@ def main():
             with open(temp_path, "wb") as f:
                 f.write(response.read())
 
+            # Get original filename from URL for format detection
+            original_filename = os.path.basename(src)
+            if "?" in original_filename:
+                original_filename = original_filename.split("?")[0]
+
             # Verify checksum if provided
             if checksum_value:
                 actual_checksum = calculate_checksum(temp_path, checksum_algorithm)
@@ -313,7 +364,10 @@ def main():
                         prefix="ansible_download_extract_"
                     )
                     success, error_msg = decompress_file(
-                        temp_path, temp_extract_dir, decompress_format
+                        temp_path,
+                        temp_extract_dir,
+                        original_filename=original_filename,
+                        decompress_format=decompress_format,
                     )
                     if not success:
                         module.fail_json(
@@ -345,7 +399,10 @@ def main():
                         prefix="ansible_download_extract_"
                     )
                     success, error_msg = decompress_file(
-                        temp_path, temp_extract_path, decompress_format
+                        temp_path,
+                        temp_extract_path,
+                        original_filename=original_filename,
+                        decompress_format=decompress_format,
                     )
                     if not success:
                         module.fail_json(

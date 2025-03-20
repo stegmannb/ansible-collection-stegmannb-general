@@ -20,3 +20,12 @@
         checksum: 3e9f620e0e81833c19d5186a89e5d8bba589f69c0993a18765863c6b62cf2e57
         checksum_algorithm: sha256
       register: download_result
+
+    - name: Test decompress zst
+      stegmannb.general.download:
+        src: https://asia.mirror.pkgbuild.com/multilib/os/x86_64/lib32-xz-5.6.4-1-x86_64.pkg.tar.zst
+        dest: /tmp/lib32-xz-5.6.4-1-x86_64.pkg.tar
+        mode: "0644"
+        decompress: true
+        decompress_format: zst
+      register: download_result
